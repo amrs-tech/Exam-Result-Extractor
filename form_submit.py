@@ -1,8 +1,9 @@
 from bs4 import BeautifulSoup
 import requests
 import urllib.parse as u
+import pandas as pd
 
-#regno = input('Enter a Register Number : ')
+n = int(input('Enter Number of Students: '))
 URL = 'http://gct.ac.in/results'
 s = requests.Session()
 
@@ -14,57 +15,77 @@ def fetch(url, data=None):
 
 soup = BeautifulSoup(fetch(URL),'lxml')
 form = soup.findAll('form')
-#print(form[1])
+
 fields = form[1].findAll('input')
 
 formdata = dict( (field.get('name'), field.get('value')) for field in fields)
 
-formdata['reg_no'] = '1517101'#regno
-formdata['btn'] = 'Submit'
+sheet = pd.read_csv('/Users/amrs/Desktop/sampel.csv')   #The input CSV file location to read Register Numbers
+reg_arr = []
+for i in sheet['Register No']:
+    reg_arr.append(str(i))
 
-print('Register Number submitted. Wait for a while...\n')
+print('\nRegister Numbers submitted. Wait for a while...\n')
 print('--------------------------------------------------------------------------------\n')
-posturl = u.urljoin(URL, form[1]['action'])
 
-r = s.post(posturl, data=formdata)
+df = pd.DataFrame()
 
-'''file1 = open('file1.txt','w')
+for regno in reg_arr:      
+    formdata['reg_no'] = regno      #register numbers
+    formdata['btn'] = 'Submit'
 
-file1.write(r.text)
+    posturl = u.urljoin(URL, form[1]['action'])
 
-file1.close()'''
+    r = s.post(posturl, data=formdata)
 
-temp = BeautifulSoup(r.text,'lxml')
+    tempSoup = BeautifulSoup(r.text,'lxml')
 
-tablediv = temp.find('div', {'class':'result_tbl'})
-#print(temp)
-tablesoup = BeautifulSoup(str(tablediv),'lxml')
-table = tablesoup.findAll('table')[1:]
+    tablediv = tempSoup.find('div', {'class':'result_tbl'})
 
-for rows in table[0].findAll('tr'):
-    cols = rows.findAll('td')
-    for c in cols:
-        print(c.find(text=True), end='\t')
-    print('')
-print('-------------------------------------------------------------------------------')
+    tablesoup = BeautifulSoup(str(tablediv),'lxml')
+    table = tablesoup.findAll('table')[1:]
 
-row1 = table[1].find('tr')
+    colnames = []
+    coldata = []
 
-for c in row1.findAll('td'):
-    print(c.find(text=True),end='\t')
-print('')
-print('-------------------------------------------------------------------------------')
+    for rows in table[1].findAll('tr')[1:]:
+        cols = rows.findAll('td')
+        for c in cols:
+            tempdata = c.find('div')
+            coldata.append(tempdata.find(text=True))
 
-for rows in table[1].findAll('tr')[1:]:
-    cols = rows.findAll('td')
-    for c in cols:
-        tempdata = c.find('div')
-        print(tempdata.find(text=True), end='\t\t')
-    print('')
-print('')
+    subcode = ['Registration Number','Name']
+    for a in range(0,len(coldata),5):
+        subcode.append(coldata[a])
+    temp = []
 
-for rows in table[2].findAll('tr'):
-    cols = rows.findAll('td')
-    for c in cols:
-        print(c.find(text=True),end='\t')
-print('\n')
+    for rows in table[2].findAll('tr'):
+        cols = rows.findAll('td')
+        for c in cols:
+            temp.append(c.find(text=True))
+    subcode.append(temp[0])
+    
+    for rows in table[0].findAll('tr'):
+        cols = rows.findAll('td')
+        for c in cols:
+            colnames.append(c.find(text=True))
+
+    #print('-------------------------------------------------------------------------------')
+    reg_name_gradepts = []
+    reg_name_gradepts.append(colnames[1])
+    reg_name_gradepts.append(colnames[3])
+    for a in range(3,len(coldata),5):
+        reg_name_gradepts.append(coldata[a])
+
+    #print('-------------------------------------------------------------------------------')
+    reg_name_gradepts.append(temp[1])
+
+    df2 = pd.DataFrame([reg_name_gradepts],columns=subcode)
+    df = df.append(df2,ignore_index=True)
+
+templist = list(df.columns.values)
+colorder = [templist[-1]]+[templist[-2]]+templist[:-2]
+
+df = df[colorder]
+df.to_csv('/Users/amrs/Desktop/out.csv')        #The output CSV file location where the Results of Students are stored
+print('Successfully created Sheet!\n')
