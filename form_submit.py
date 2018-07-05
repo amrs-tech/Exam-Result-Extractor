@@ -4,7 +4,7 @@ import urllib.parse as u
 import pandas as pd
 
 n = int(input('Enter Number of Students: '))
-URL = 'http://gct.ac.in/results'
+URL = 'http://gct.ac.in/result'
 s = requests.Session()
 
 def fetch(url, data=None):
